@@ -2,8 +2,10 @@
 module Web.Server where
 
 import Data.Aeson
-import Data.Proxy
-import Data.Text
+import Data.Function ((&))
+import Data.Text (Text)
+import Data.HashMap.Strict qualified as HashMap
+import Data.HashMap.Strict (HashMap)
 
 import Web.API
 import CLI.Types
@@ -15,10 +17,8 @@ import Servant.Server
 import Polysemy
 
 makeServer
-  :: forall impl m
-  .  CofferBackend impl
-  => (Command -> Sem m Value)
-  -> ServerT (API impl) (Sem m)
+  :: (Command -> Sem m Value)
+  -> ServerT API (Sem m)
 makeServer run
   =    view   run
   :<|> create run
@@ -30,62 +30,121 @@ makeServer run
   :<|> delete' run
   :<|> tag run
 
+noContent :: Functor f => f a -> f NoContent
+noContent = (NoContent <$)
+
+type Confirmation = NoContent
+
 view
-  :: CofferBackend impl
-  => (Command -> Sem m Value)
+  :: (Command -> Sem m Value)
   -> Text
   -> Maybe FieldKey
-  -> Sem m [Content impl]
-view = error "view"
+  -> Sem m Value
+view run voPath voField = run $ CmdView ViewOptions {voPath, voField}
 
 create
   :: (Command -> Sem m Value)
   -> Text
   -> Bool
-  -> Bool
   -> [Text]
-  -> [FieldKey]
-  -> Text
-  -> Sem m ()
-create = error "create"
+  -> (HashMap FieldKey Text, HashMap FieldKey Text)
+  -> Sem m Confirmation
+create run coPath coForce coTags (fields, privateFields) =
+  noContent $ run $ CmdCreate CreateOptions
+    { coPath
+    , coEdit = False
+    , coForce
+    , coTags
+    , coFields        = fields        & HashMap.toList & map (uncurry FieldInfo)
+    , coPrivateFields = privateFields & HashMap.toList & map (uncurry FieldInfo)
+    }
 
-private :: (Command -> Sem m Value) -> Text -> Sem m NoContent
-private = error "private"
+private :: (Command -> Sem m Value) -> Text -> Sem m Confirmation
+private run sfoPath =
+  noContent $ run $ CmdSetField SetFieldOptions
+    { sfoPath
+    , sfoFieldName = FieldKey ""
+    , sfoFieldContents = ""
+    , sfoVisibility = Just Private
+    }
 
-public :: (Command -> Sem m Value) -> Text -> Sem m NoContent
-public = error "public"
+public :: (Command -> Sem m Value) -> Text -> Sem m Confirmation
+public run sfoPath =
+  noContent $ run $ CmdSetField SetFieldOptions
+    { sfoPath
+    , sfoFieldName = FieldKey ""
+    , sfoFieldContents = ""
+    , sfoVisibility = Just Public
+    }
 
-set :: (Command -> Sem m Value) -> Text -> Text -> Sem m ()
-set = error "set"
+set :: (Command -> Sem m Value) -> Text -> FieldKey -> Text -> Sem m Confirmation
+set run sfoPath sfoFieldName sfoFieldContents =
+  noContent $ run $ CmdSetField SetFieldOptions
+    { sfoPath
+    , sfoFieldName
+    , sfoFieldContents
+    , sfoVisibility = Nothing
+    }
 
-deleteField :: (Command -> Sem m Value) -> Text -> Sem m NoContent
-deleteField = error "deleteField"
+deleteField :: (Command -> Sem m Value) -> Text -> FieldKey -> Sem m Confirmation
+deleteField run dfoPath dfoFieldName =
+  noContent $ run $ CmdDeleteField DeleteFieldOptions
+    { dfoPath
+    , dfoFieldName
+    }
 
 find'
   :: (Command -> Sem m Value)
   -> Maybe Text
   -> Maybe Text
   -> Maybe Sort
-  -> Maybe Filter
-  -> Maybe FieldKey
-  -> Maybe FieldKey
-  -> Sem m [Content impl]
-find' = error "find'"
+  -> Maybe SortField
+  -> [Filter]
+  -> [(FieldKey, FilterField)]
+  -> Sem m Value
+find' run foPath foText foSort foSortField foFilters foFilterFields =
+  run $ CmdFind FindOptions
+    { foPath
+    , foText
+    , foSort
+    , foSortField
+    , foFilters
+    , foFilterFields
+    }
 
 rename
   :: (Command -> Sem m Value)
   -> Text
   -> Text
   -> Bool
-  -> Sem m ()
-rename = error "rename"
+  -> Sem m Confirmation
+rename run roOldPath roNewPath roForce =
+  noContent $ run $ CmdRename RenameOptions
+    { roOldPath
+    , roNewPath
+    , roForce
+    }
 
 copy'
-  :: (Command -> Sem m Value) -> Text -> Text -> Bool -> Sem m ()
-copy' = error "copy'"
+  :: (Command -> Sem m Value) -> Text -> Text -> Bool -> Sem m Confirmation
+copy' run cpoOldPath cpoNewPath cpoForce =
+  noContent $ run $ CmdCopy CopyOptions
+    { cpoNewPath
+    , cpoOldPath
+    , cpoForce
+    }
 
-delete' :: (Command -> Sem m Value) -> Text -> Bool -> Sem m ()
-delete' = error "delete'"
+delete' :: (Command -> Sem m Value) -> Text -> Bool -> Sem m Confirmation
+delete' run doPath doRecursive =
+  noContent $ run $ CmdDelete DeleteOptions
+    { doPath
+    , doRecursive
+    }
 
-tag :: (Command -> Sem m Value) -> Text -> Text -> Bool -> Sem m ()
-tag = error "tag"
+tag :: (Command -> Sem m Value) -> Text -> Text -> Bool -> Sem m Confirmation
+tag run toPath toTagName toDelete =
+  noContent $ run $ CmdTag TagOptions
+    { toPath
+    , toTagName
+    , toDelete
+    }

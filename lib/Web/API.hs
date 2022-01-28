@@ -1,10 +1,9 @@
-{-# language NoMonomorphismRestriction #-}
+{-# options_ghc -Wno-orphans #-}
 
 module Web.API where
 
 import Data.Aeson
-import Data.Proxy
-import Data.Kind
+import Data.HashMap.Strict
 import Data.Text (Text)
 import qualified Data.Text as Text
 
@@ -13,79 +12,80 @@ import Servant.API
 import CLI.Types
 import Entry
 
-type API impl
+type API
   = "api" :> "v1" :> "content" :>
     ( "view"
       :> RequiredParam "path"  Text
       :> OptionalParam "field" FieldKey
-      :> Get '[JSON] [Content impl]
+      :> Get '[JSON] Value
 
     :<|> "create"
       :> RequiredParam  "path" Text
       :> QueryFlag      "force"
-      :> QueryFlag      "private"
       :> OptionalParams "tag"   Text
-      :> OptionalParams "field" FieldKey
-      :> ReqBody '[JSON] Text
-      :> Post '[JSON] ()
+      :> ReqBody '[JSON] (HashMap FieldKey Text, HashMap FieldKey Text)
+      :> PostNoContent
 
     :<|> "set-field"
       :> RequiredParam "path" Text
       :>
         (    "private" :> PostNoContent
         :<|> "public"  :> PostNoContent
-        :<|> ReqBody '[JSON] Text
-          :> Post '[JSON] ()
+        :<|> RequiredParam "field" FieldKey
+          :> ReqBody '[JSON] Text
+          :> PostNoContent
         )
 
     :<|> "delete-field"
       :> RequiredParam "path" Text
+      :> RequiredParam "field" FieldKey
       :> DeleteNoContent
 
+    {-
+      { foPath :: Maybe Text
+  , foText :: Maybe Text
+  , foSort :: Maybe Sort
+  , foSortField :: Maybe SortField
+  , foFilters :: [Filter]
+  , foFilterFields :: [(FieldKey, FilterField)]
+
+    -}
     :<|> "find"
-      :> OptionalParam "path" Text
-      :> OptionalParam "text" Text
-      :> OptionalParam "sort" Sort
-      :> OptionalParam "filter" Filter
-      :> OptionalParam "filter-field" FieldKey
-      :> OptionalParam "sort-field" FieldKey
-      :> Get '[JSON] [Content impl]
+      :> OptionalParam  "path" Text
+      :> OptionalParam  "text" Text
+      :> OptionalParam  "sort" Sort
+      :> OptionalParam  "sort-field" SortField
+      :> OptionalParams "filter" Filter
+      :> OptionalParams "filter-field" (FieldKey, FilterField)
+      :> Get '[JSON] Value
 
     :<|> "rename"
       :> RequiredParam "old-path" Text
       :> RequiredParam "new-path" Text
       :> QueryFlag     "force"
-      :> Post '[JSON] ()
+      :> PostNoContent
 
     :<|> "copy"
       :> RequiredParam "old-path" Text
       :> RequiredParam "new-path" Text
       :> QueryFlag     "force"
-      :> Post '[JSON] ()
+      :> PostNoContent
 
     :<|> "delete"
       :> RequiredParam "path" Text
       :> QueryFlag     "recursive"
-      :> Post '[JSON] ()
+      :> PostNoContent
 
     :<|> "tag"
       :> RequiredParam "path" Text
-      :> RequiredParam "tag-name" Text
+      :> RequiredParam "tag" Text
       :> QueryFlag     "delete"
-      :> Post '[JSON] ()
+      :> PostNoContent
     )
 
 type RequiredParam  = QueryParam' [Required, Strict]
 type OptionalParam  = QueryParam
 type OptionalParams = QueryParams
-
-class
-  ( FromJSON (Content impl)
-  , ToJSON   (Content impl)
-  )
-  => CofferBackend impl
-  where
-    data Content impl :: Type
 
 deriving newtype instance ToHttpApiData FieldKey
 

@@ -28,7 +28,7 @@ import Coffer.Path (EntryPath)
 type DateTime = UTCTime
 
 newtype FieldKey = FieldKey T.Text
-  deriving (Generic, Show, Eq)
+  deriving stock (Generic, Show, Eq)
   deriving newtype Buildable
 
 instance Hashable FieldKey
@@ -95,7 +95,7 @@ data Field =
   , _visibility :: FieldVisibility
   , _value :: T.Text
   }
-  deriving (Show, Eq)
+  deriving stock (Show, Eq)
 
 newField :: UTCTime -> T.Text -> Field
 newField time value =
@@ -115,7 +115,7 @@ data Entry =
   , _fields :: HS.HashMap FieldKey Field
   , _tags :: [EntryTag]
   }
-  deriving (Show, Eq)
+  deriving stock (Show, Eq)
 
 newEntry :: EntryPath -> UTCTime -> Entry
 newEntry path time =
