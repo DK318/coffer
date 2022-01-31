@@ -1,5 +1,6 @@
 module CLI.Types where
 
+import Data.Aeson
 import Data.Text (Text)
 import Data.Time.Compat (Day, UTCTime , Year)
 import Data.Time.Calendar.Month.Compat (Month)
@@ -38,16 +39,22 @@ data ViewResult
 data CreateResult
   = CRSuccess Entry
   | CREntryAlreadyExists EntryPath
+  deriving stock (Show, Generic)
+  deriving anyclass (FromJSON, ToJSON)
 
 data SetFieldResult
   = SFRSuccess Entry
   | SFREntryNotFound EntryPath
   | SFRMissingFieldContents EntryPath
+  deriving stock (Show, Generic)
+  deriving anyclass (FromJSON, ToJSON)
 
 data DeleteFieldResult
   = DFRSuccess Entry
   | DFREntryNotFound EntryPath
   | DFRFieldNotFound FieldKey
+  deriving stock (Show, Generic)
+  deriving anyclass (FromJSON, ToJSON)
 
 type RenameResult = CopyResult
 
@@ -57,17 +64,23 @@ data CopyResult
   | CPRMissingEntryName
   | CPRDestinationIsDirectory [(EntryPath, EntryPath)]
   | CPREntryAlreadyExists [(EntryPath, EntryPath)]
+  deriving stock (Show, Generic)
+  deriving anyclass (FromJSON, ToJSON)
 
 data DeleteResult
   = DRSuccess [EntryPath]
   | DRPathNotFound Path
   | DRDirectoryFound Path
+  deriving stock (Show, Generic)
+  deriving anyclass (FromJSON, ToJSON)
 
 data TagResult
   = TRSuccess Entry
   | TREntryNotFound EntryPath
   | TRTagNotFound EntryTag
   | TRDuplicateTag EntryTag
+  deriving stock (Show, Generic)
+  deriving anyclass (FromJSON, ToJSON)
 
 ----------------------------------------------------------------------------
 -- Options
@@ -77,7 +90,8 @@ data ViewOptions = ViewOptions
   { voPath :: Path
   , voFieldName :: Maybe FieldKey
   }
-  deriving stock Show
+  deriving stock (Show, Generic)
+  deriving anyclass (FromJSON, ToJSON)
 
 data CreateOptions = CreateOptions
   { coPath :: EntryPath
@@ -87,7 +101,8 @@ data CreateOptions = CreateOptions
   , coFields :: [FieldInfo]
   , coPrivateFields :: [FieldInfo]
   }
-  deriving stock Show
+  deriving stock (Show, Generic)
+  deriving anyclass (FromJSON, ToJSON)
 
 data SetFieldOptions = SetFieldOptions
   { sfoPath :: EntryPath
@@ -95,13 +110,15 @@ data SetFieldOptions = SetFieldOptions
   , sfoFieldContents :: Maybe Text
   , sfoVisibility :: Maybe FieldVisibility
   }
-  deriving stock Show
+  deriving stock (Show, Generic)
+  deriving anyclass (FromJSON, ToJSON)
 
 data DeleteFieldOptions = DeleteFieldOptions
   { dfoPath :: EntryPath
   , dfoFieldName :: FieldKey
   }
-  deriving stock Show
+  deriving stock (Show, Generic)
+  deriving anyclass (FromJSON, ToJSON)
 
 data FindOptions = FindOptions
   { foPath :: Maybe Path
@@ -110,34 +127,39 @@ data FindOptions = FindOptions
   , foFilters :: [Filter]
   , foFilterFields :: [(FieldKey, FilterField)]
   }
-  deriving stock Show
+  deriving stock (Show, Generic)
+  deriving anyclass (FromJSON, ToJSON)
 
 data RenameOptions = RenameOptions
   { roOldPath :: Path
   , roNewPath :: Path
   , roForce :: Bool
   }
-  deriving stock Show
+  deriving stock (Show, Generic)
+  deriving anyclass (FromJSON, ToJSON)
 
 data CopyOptions = CopyOptions
   { cpoOldPath :: Path
   , cpoNewPath :: Path
   , cpoForce :: Bool
   }
-  deriving stock Show
+  deriving stock (Show, Generic)
+  deriving anyclass (FromJSON, ToJSON)
 
 data DeleteOptions = DeleteOptions
   { doPath :: Path
   , doRecursive :: Bool
   }
-  deriving stock Show
+  deriving stock (Show, Generic)
+  deriving anyclass (FromJSON, ToJSON)
 
 data TagOptions = TagOptions
   { toPath :: EntryPath
   , toTagName :: EntryTag
   , toDelete :: Bool
   }
-  deriving stock Show
+  deriving stock (Show, Generic)
+  deriving anyclass (FromJSON, ToJSON)
 
 ----------------------------------------------------------------------------
 -- Option arguments
@@ -147,34 +169,41 @@ data FieldInfo = FieldInfo
   { fiName :: FieldKey
   , fiContents :: Text
   }
-  deriving stock Show
+  deriving stock (Show, Generic)
+  deriving anyclass (FromJSON, ToJSON)
 
 data Direction = Asc | Desc
-  deriving stock Show
+  deriving stock (Show, Generic)
+  deriving anyclass (FromJSON, ToJSON)
 
 data Sort
   = SortByEntryName
   | SortByEntryDate
   | SortByFieldValue FieldKey
   | SortByFieldDate FieldKey
-  deriving stock Show
+  deriving stock (Show, Generic)
+  deriving anyclass (FromJSON, ToJSON)
 
 data FilterOp = OpGT | OpGTE | OpLT | OpLTE | OpEQ
-  deriving stock Show
+  deriving stock (Show, Generic)
+  deriving anyclass (FromJSON, ToJSON)
 
 data FilterDate
   = FDYear Year
   | FDMonth Month
   | FDDay Day
   | FDTime UTCTime
-  deriving stock Show
+  deriving stock (Show, Generic)
+  deriving anyclass (FromJSON, ToJSON)
 
 data Filter
   = FilterByDate FilterOp FilterDate
   | FilterByName Text
-  deriving stock Show
+  deriving stock (Show, Generic)
+  deriving anyclass (FromJSON, ToJSON)
 
 data FilterField
   = FilterFieldByDate FilterOp FilterDate
   | FilterFieldByValue Text
-  deriving stock Show
+  deriving stock (Show, Generic)
+  deriving anyclass (FromJSON, ToJSON)

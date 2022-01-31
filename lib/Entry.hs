@@ -30,13 +30,7 @@ type DateTime = UTCTime
 newtype FieldKey = FieldKey T.Text
   deriving stock (Generic, Show, Eq)
   deriving newtype Buildable
-
-instance Hashable FieldKey
-
-instance A.ToJSON FieldKey where
-instance A.ToJSONKey FieldKey where
-instance A.FromJSON FieldKey where
-instance A.FromJSONKey FieldKey where
+  deriving anyclass (Hashable, A.FromJSON, A.ToJSON, A.FromJSONKey, A.ToJSONKey)
 
 newFieldKey :: Text -> Either Text FieldKey
 newFieldKey t
@@ -95,7 +89,8 @@ data Field =
   , _visibility :: FieldVisibility
   , _value :: T.Text
   }
-  deriving stock (Show, Eq)
+  deriving stock (Show, Eq, Generic)
+  deriving anyclass (Hashable, A.FromJSON, A.ToJSON, A.FromJSONKey, A.ToJSONKey)
 
 newField :: UTCTime -> T.Text -> Field
 newField time value =
@@ -115,7 +110,8 @@ data Entry =
   , _fields :: HS.HashMap FieldKey Field
   , _tags :: [EntryTag]
   }
-  deriving stock (Show, Eq)
+  deriving stock (Show, Eq, Generic)
+  deriving anyclass (Hashable, A.FromJSON, A.ToJSON, A.FromJSONKey, A.ToJSONKey)
 
 newEntry :: EntryPath -> UTCTime -> Entry
 newEntry path time =

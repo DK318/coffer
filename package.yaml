@@ -12,39 +12,45 @@ extra-source-files:
 - README.md
 
 dependencies:
-  - base >= 4.14.3.0 && < 5
-  - lens
-  - generic-lens
-  - text
-  - bytestring
-  - unordered-containers
   - aeson
-  - mtl
+  - base >= 4.14.3.0 && < 5
+  - bytestring
+  - exceptions
+  - fmt
+  - generic-lens
   - hashable
+  - lens
+  - mtl
+  - optparse-applicative
   - polysemy
   - scientific
-  - tomland
-  - validation-selective
-  - optparse-applicative
   - servant-client
   - servant-client-core
-  - fmt
+  - servant-server
+  - text
+  - tomland
+  - unordered-containers
+  - validation-selective
 
 default-extensions:
   - BlockArguments
+  - DataKinds
+  - DeriveAnyClass
   - DeriveFoldable
   - DeriveFunctor
   - DeriveGeneric
-  - DeriveAnyClass
-  - DerivingVia
-  - OverloadedStrings
   - DerivingStrategies
-  - DataKinds
+  - DerivingVia
   - FlexibleContexts
+  - FlexibleInstances
   - GADTs
   - GeneralizedNewtypeDeriving
+  - ImportQualifiedPost
   - LambdaCase
   - MultiWayIf
+  - NamedFieldPuns
+  - OverloadedStrings
+  - OverloadedStrings
   - PatternSynonyms
   - PolyKinds
   - RankNTypes
@@ -52,23 +58,24 @@ default-extensions:
   - StandaloneDeriving
   - TemplateHaskell
   - TypeApplications
-  - TypeOperators
   - TypeFamilies
+  - TypeOperators
   - ViewPatterns
 
 ghc-options:
   - -Weverything
-  - -Wno-implicit-prelude
-  - -Wno-name-shadowing
-  - -Wno-missing-import-lists
-  - -Wno-missing-export-lists
-  - -Wno-unsafe
-  - -Wno-safe
-  - -Wno-missing-safe-haskell-mode
-  - -Wno-prepositive-qualified-module
-  - -Wno-monomorphism-restriction
-  - -Wno-missed-specialisations
   - -Wno-all-missed-specialisations
+  - -Wno-implicit-prelude
+  - -Wno-missed-specialisations
+  - -Wno-missing-export-lists
+  - -Wno-missing-import-lists
+  - -Wno-missing-safe-haskell-mode
+  - -Wno-monomorphism-restriction
+  - -Wno-name-shadowing
+  - -Wno-prepositive-qualified-module
+  - -Wno-safe
+  - -Wno-unsafe
+  - -freverse-errors
 
 library:
   source-dirs:      lib
@@ -86,10 +93,17 @@ library:
 
 executables:
   coffer:
-    source-dirs:      app
+    source-dirs:      app/cli
     main:             Main.hs
     dependencies:
       - coffer
+
+  coffer-server:
+    source-dirs:      app/server
+    main:             Main.hs
+    dependencies:
+      - coffer
+      - warp
 
 tests:
   test:
