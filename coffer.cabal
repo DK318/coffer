@@ -23,6 +23,7 @@ library
       Backend.Vault.Kv
       Backend.Vault.Kv.Internal
       Backends
+      CLI.EditorMode
       CLI.Parser
       CLI.PrettyPrint
       CLI.Types
@@ -53,6 +54,7 @@ library
       MultiWayIf
       PatternSynonyms
       PolyKinds
+      QuasiQuotes
       RankNTypes
       ScopedTypeVariables
       StandaloneDeriving
@@ -74,15 +76,18 @@ library
     , http-client
     , http-client-tls
     , http-types
+    , interpolate
     , lens
     , megaparsec
     , mtl
     , optparse-applicative
     , polysemy
+    , process
     , scientific
     , servant
     , servant-client
     , servant-client-core
+    , temporary
     , text
     , time
     , time-compat
@@ -115,6 +120,7 @@ executable coffer
       MultiWayIf
       PatternSynonyms
       PolyKinds
+      QuasiQuotes
       RankNTypes
       ScopedTypeVariables
       StandaloneDeriving
@@ -169,6 +175,7 @@ test-suite doctests
       MultiWayIf
       PatternSynonyms
       PolyKinds
+      QuasiQuotes
       RankNTypes
       ScopedTypeVariables
       StandaloneDeriving
@@ -204,6 +211,8 @@ test-suite test
   type: exitcode-stdio-1.0
   main-is: Main.hs
   other-modules:
+      Test.CLI.EditorMode
+      Test.Util
       Tree
       Paths_coffer
   hs-source-dirs:
@@ -225,6 +234,7 @@ test-suite test
       MultiWayIf
       PatternSynonyms
       PolyKinds
+      QuasiQuotes
       RankNTypes
       ScopedTypeVariables
       StandaloneDeriving
@@ -244,15 +254,18 @@ test-suite test
     , fmt
     , generic-lens
     , hashable
+    , hedgehog
     , lens
     , megaparsec
     , mtl
     , optparse-applicative
     , polysemy
+    , raw-strings-qq
     , scientific
     , servant-client
     , servant-client-core
     , tasty
+    , tasty-hedgehog
     , tasty-hunit
     , text
     , tomland

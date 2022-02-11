@@ -1,7 +1,11 @@
 {-# LANGUAGE OverloadedLists #-}
 
 module CLI.Parser
-  ( parserInfo
+  ( -- * optparse-applicative
+    parserInfo
+    -- * Megaparsec
+  , MParser
+  , parseEditorFile
   ) where
 
 import Options.Applicative
@@ -16,7 +20,7 @@ import Data.Function ((&))
 import Control.Arrow ((>>>))
 import qualified Text.Megaparsec as P
 import qualified Text.Megaparsec.Char as P
-import qualified Text.Megaparsec.Char.Lexer as P
+import qualified Text.Megaparsec.Char.Lexer as Lexer
 import Data.Void ( Void )
 import Data.Foldable (asum)
 import Data.Time.Compat (LocalTime (..), makeTimeOfDayValid, localTimeToUTC, utc)
@@ -317,7 +321,7 @@ readFieldKey' input = do
 readFieldInfo :: ReadM FieldInfo
 readFieldInfo = do
   input <- str
-  case P.parse (parseFieldInfo <* P.eof) "" input of
+  case P.parse (parseFieldInfo parseFieldContentsEof <* P.eof) "" input of
     Right fieldInfo -> pure fieldInfo
     Left err -> readerError $ unlines
       [ "Invalid field format: '" <> T.unpack input <> "'."
@@ -433,7 +437,7 @@ type MParser = P.Parsec Void Text
 -- * @YYYY-MM-DD HH:MM:SS@
 parseFilterDate :: MParser FilterDate
 parseFilterDate = do
-  y <- P.decimal
+  y <- Lexer.decimal
   optional (P.char '-') >>= \case
     Nothing -> pure $ FDYear y
     Just _ -> do
@@ -508,11 +512,11 @@ parseFilterField = do
       localTime <- parseFilterDate
       pure $ FilterFieldByDate op localTime
 
-parseFieldInfo :: MParser FieldInfo
-parseFieldInfo = do
+parseFieldInfo :: MParser Text -> MParser FieldInfo
+parseFieldInfo fieldContentsParser = do
   fieldName <- parseFieldNameWhile \c -> c /= '=' && not (Char.isSpace c)
   P.hspace >> P.char '=' >> P.hspace
-  fieldContents <- parseFieldContentsEof
+  fieldContents <- fieldContentsParser
   pure $ FieldInfo fieldName fieldContents
 
 parseFieldNameWhile :: (Char -> Bool) -> MParser FieldKey
@@ -523,6 +527,54 @@ parseFieldNameWhile whileCond = do
 -- | Parse the rest of the input as a field content.
 parseFieldContentsEof :: MParser Text
 parseFieldContentsEof = T.pack <$> P.manyTill P.anySingle P.eof
+
+-- | Parse the rest of the line as a field content.
+parseFieldContentsSingleLine :: MParser Text
+parseFieldContentsSingleLine = T.pack <$> P.manyTill P.anySingle endOfLineOrFile
+
+-- | Parse a field content wrapped in triple quotes @"""@. E.g.:
+--
+-- > """
+-- > line1
+-- > line2
+-- > """
+parseFieldContentsTripleQuotes :: MParser Text
+parseFieldContentsTripleQuotes = do
+  let beginBlock = tripleQuote >> void P.eol
+  let parseLine = P.manyTill P.anySingle P.eol
+  let endBlock = tripleQuote >> endOfLineOrFile
+
+  res <- beginBlock >> P.manyTill parseLine endBlock
+  pure $ res <&> T.pack & T.intercalate "\n"
+
+  where
+    tripleQuote :: MParser ()
+    tripleQuote = void $ P.string "\"\"\""
+
+parseEditorFile :: MParser ([FieldInfo], [FieldInfo])
+parseEditorFile = do
+  let parseFieldInfo' = parseFieldInfo (parseFieldContentsTripleQuotes <|> parseFieldContentsSingleLine) <* spaceConsumer
+
+  spaceConsumer >> P.string "[Public fields]" >> spaceConsumer
+  publicFields <- many (P.notFollowedBy (P.char '[') >> parseFieldInfo')
+  spaceConsumer >> P.string "[Private fields]" >> spaceConsumer
+  privateFields <- many parseFieldInfo'
+  P.space >> P.eof
+  pure (publicFields, privateFields)
+  where
+    comment :: MParser ()
+    comment = Lexer.skipLineComment "#"
+
+    -- | Skip empty lines and comments.
+    spaceConsumer :: MParser ()
+    spaceConsumer = Lexer.space
+      (void $ P.try $ P.hspace >> P.eol)
+      comment
+      empty
+
+-- | Matches on @eol@ or @eof@.
+endOfLineOrFile :: MParser ()
+endOfLineOrFile = void P.eol <|> P.eof
 
 ----------------------------------------------------------------------------
 -- Utils

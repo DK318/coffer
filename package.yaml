@@ -47,6 +47,7 @@ default-extensions:
   - MultiWayIf
   - PatternSynonyms
   - PolyKinds
+  - QuasiQuotes
   - RankNTypes
   - ScopedTypeVariables
   - StandaloneDeriving
@@ -79,10 +80,13 @@ library:
     - http-types
     - containers
     - megaparsec
+    - process
+    - temporary
     - time
     - time-compat
     - vector
     - extra
+    - interpolate
 
 executables:
   coffer:
@@ -101,8 +105,12 @@ tests:
     dependencies:
       - coffer
       - megaparsec
+      - hedgehog
       - tasty
       - tasty-hunit
+      - tasty-hedgehog
+      - raw-strings-qq
+
   doctests:
     source-dirs:      doctests
     main:             Doctests.hs

@@ -20,6 +20,7 @@ import Backend
 import Coffer.Path ( Path, EntryPath )
 import qualified Entry as E
 import qualified Coffer.Directory as Dir
+import CLI.EditorMode
 
 url :: BaseUrl
 url = BaseUrl Http "127.0.0.1" 8200 ""
@@ -56,7 +57,11 @@ main = do
           VREntryNoFieldMatch path fieldName -> printError $
             "The entry at '" +| path |+ "' does not have a field '" +| fieldName |+ "'."
 
-      SomeCommand cmd@(CmdCreate opts) -> do
+      SomeCommand (CmdCreate opts) -> do
+        cmd <- CmdCreate <$>
+          if coEdit opts
+            then embed (editorMode opts)
+            else pure opts
         runCommand cmd >>= \case
           CRSuccess _ -> printSuccess $ "Entry created at '"  +| coPath opts |+ "'."
           CREntryAlreadyExists path -> printError $ unlinesF
