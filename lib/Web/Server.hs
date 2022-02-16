@@ -22,13 +22,14 @@ import Web.API
 import CLI.Types
 import Entry
 import Error
-import Directory
 import Backend
 import Backend.Vault.Kv
 
 import Servant.API
 import Servant.Server
 import Servant.Client
+import Coffer.Path (Path, EntryPath)
+import Coffer.Directory (Directory)
 
 url :: BaseUrl
 url = BaseUrl Http "127.0.0.1" 8200 ""
@@ -51,9 +52,6 @@ reportErrors io = do
   case eea of
     Left ioError -> do
       throwError err500 { errBody = errorToServantErrorMsg ioError }
-
-    Right (Left (Vault e@EntryNotFound {})) -> do
-      throwError err404 { errBody = errorToServantErrorMsg e }
 
     Right (Left e) -> do
       throwError err500 { errBody = errorToServantErrorMsg e }
@@ -92,15 +90,15 @@ view
   -> VaultToken
   -> Path
   -> Maybe FieldKey
-  -> Handler (Maybe (Directory (Entry, NonEmpty (FieldKey, Field))))
+  -> Handler ViewResult
 view run token voPath voFieldName = run token $ CmdView ViewOptions {voPath, voFieldName}
 
 create
   :: (forall a. VaultToken -> Command a -> Handler a)
   -> VaultToken
-  -> Path
+  -> EntryPath
   -> Bool
-  -> [Text]
+  -> [EntryTag]
   -> (HashMap FieldKey Text, HashMap FieldKey Text)
   -> Handler CreateResult
 create run token coPath coForce coTags (fields, privateFields) =
@@ -116,35 +114,35 @@ create run token coPath coForce coTags (fields, privateFields) =
 private
   :: (forall a. VaultToken -> Command a -> Handler a)
   -> VaultToken
-  -> Path
+  -> EntryPath
   -> Handler SetFieldResult
 private run token sfoPath =
   run token $ CmdSetField SetFieldOptions
     { sfoPath
     , sfoFieldName = FieldKey ""
-    , sfoFieldContents = ""
+    , sfoFieldContents = Nothing
     , sfoVisibility = Just Private
     }
 
 public
   :: (forall a. VaultToken -> Command a -> Handler a)
   -> VaultToken
-  -> Path
+  -> EntryPath
   -> Handler SetFieldResult
 public run token sfoPath =
   run token $ CmdSetField SetFieldOptions
     { sfoPath
     , sfoFieldName = FieldKey ""
-    , sfoFieldContents = ""
+    , sfoFieldContents = Nothing
     , sfoVisibility = Just Public
     }
 
 set
   :: (forall a. VaultToken -> Command a -> Handler a)
   -> VaultToken
-  -> Path
+  -> EntryPath
   -> FieldKey
-  -> Text
+  -> Maybe Text
   -> Handler SetFieldResult
 set run token sfoPath sfoFieldName sfoFieldContents =
   run token $ CmdSetField SetFieldOptions
@@ -157,7 +155,7 @@ set run token sfoPath sfoFieldName sfoFieldContents =
 deleteField
   :: (forall a. VaultToken -> Command a -> Handler a)
   -> VaultToken
-  -> Path
+  -> EntryPath
   -> FieldKey
   -> Handler DeleteFieldResult
 deleteField run token dfoPath dfoFieldName =
@@ -174,7 +172,7 @@ find'
   -> Maybe (Sort, Direction)
   -> [Filter]
   -> [(FieldKey, FilterField)]
-  -> Handler (Maybe (Directory Entry))
+  -> Handler (Maybe Directory)
 find' run token foPath foText foSort foFilters foFilterFields =
   run token $ CmdFind FindOptions
     { foPath
@@ -227,8 +225,8 @@ delete' run token doPath doRecursive =
 tag
   :: (forall a. VaultToken -> Command a -> Handler a)
   -> VaultToken
-  -> Path
-  -> Text
+  -> EntryPath
+  -> EntryTag
   -> Bool
   -> Handler TagResult
 tag run token toPath toTagName toDelete =

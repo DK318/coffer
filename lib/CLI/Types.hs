@@ -7,6 +7,7 @@ import Data.Time.Calendar.Month.Compat (Month)
 import Entry (FieldKey, Field, Entry, FieldVisibility, EntryTag)
 import Coffer.Directory (Directory)
 import Coffer.Path (Path, EntryPath)
+import GHC.Generics (Generic)
 
 data Command res where
   CmdView :: ViewOptions -> Command ViewResult

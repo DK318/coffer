@@ -13,16 +13,16 @@ module Entry
   )
 where
 
-import Fmt (Buildable, build)
-import qualified Data.Text as T
-import qualified Data.HashMap.Strict as HS
 import Control.Lens
-import qualified Data.Aeson as A
+import Data.Aeson qualified as A
 import Data.Hashable (Hashable)
-import GHC.Generics (Generic)
-import Data.Time (UTCTime)
-import Language.Haskell.TH.Lens (_CaseE)
+import Data.HashMap.Strict qualified as HS
 import Data.Text (Text)
+import Data.Text qualified as T
+import Data.Time (UTCTime)
+import Fmt (Buildable, build)
+import GHC.Generics (Generic)
+
 import Coffer.Path (EntryPath)
 
 type DateTime = UTCTime
@@ -47,11 +47,9 @@ getFieldKey :: FieldKey -> T.Text
 getFieldKey (FieldKey t) = t
 
 newtype EntryTag = EntryTag T.Text
-  deriving (Generic, Show, Eq)
-  deriving newtype (Buildable, Ord)
-
-instance A.ToJSON EntryTag where
-instance A.FromJSON EntryTag where
+  deriving stock (Generic, Show, Eq)
+  deriving newtype (Buildable, Ord, Hashable)
+  deriving anyclass (A.ToJSON, A.FromJSON)
 
 newEntryTag :: Text -> Either Text EntryTag
 newEntryTag tag
@@ -66,7 +64,8 @@ getEntryTag :: EntryTag -> T.Text
 getEntryTag (EntryTag t) = t
 
 data FieldVisibility = Public | Private
-  deriving stock (Show, Eq)
+  deriving stock (Show, Eq, Generic)
+  deriving anyclass (Hashable)
 
 instance Buildable FieldVisibility where
   build = \case

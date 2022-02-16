@@ -1,31 +1,28 @@
 {-# options_ghc -Wno-orphans #-}
+{-# OPTIONS_GHC -Wno-deferred-out-of-scope-variables #-}
 
 module Web.API where
 
 import Control.Monad (guard, void)
-
-import Data.Bifunctor (bimap)
 import Data.Functor (($>))
-import Data.List.NonEmpty (NonEmpty)
+import Data.Bifunctor (first)
 import Data.HashMap.Strict
 import Data.Text qualified as Text
 import Data.Text (Text)
 import Data.Void (Void)
-import Data.Time (LocalTime (LocalTime), makeTimeOfDayValid)
+import Data.Time (LocalTime (LocalTime), makeTimeOfDayValid, localTimeToUTC, utc)
 import Data.Time.Calendar.Compat ( fromGregorianValid )
 import Data.Time.Calendar.Month.Compat (fromYearMonthValid)
 import Data.Fixed (Pico)
-
 import GHC.Generics (Generic)
-
 import Servant.API
-
 import Text.Megaparsec
 
 import CLI.Types
 import Entry
 import Backend.Vault.Kv
-import Directory (Directory, Path, mkPath)
+import Coffer.Directory (Directory)
+import Coffer.Path (Path, mkPath, EntryPath, mkEntryPath)
 
 type API
   = Header' [Required, Strict] "token" VaultToken
@@ -33,27 +30,27 @@ type API
     ( "view"
       :> RequiredParam "path"  Path
       :> OptionalParam "field" FieldKey
-      :> Get '[JSON] (Maybe (Directory (Entry, NonEmpty (FieldKey, Field))))
+      :> Get '[JSON] ViewResult
 
     :<|> "create"
-      :> RequiredParam  "path" Path
+      :> RequiredParam  "path" EntryPath
       :> QueryFlag      "force"
-      :> OptionalParams "tag"   Text
+      :> OptionalParams "tag"   EntryTag
       :> ReqBody '[JSON] (HashMap FieldKey Text, HashMap FieldKey Text)
       :> Post '[JSON] CreateResult
 
     :<|> "set-field"
-      :> RequiredParam "path" Path
+      :> RequiredParam "path" EntryPath
       :>
         (    "private" :> Post '[JSON] SetFieldResult
         :<|> "public"  :> Post '[JSON] SetFieldResult
         :<|> RequiredParam "field" FieldKey
-          :> ReqBody '[JSON] Text
+          :> ReqBody '[JSON] (Maybe Text)
           :> Post '[JSON] SetFieldResult
         )
 
     :<|> "delete-field"
-      :> RequiredParam "path" Path
+      :> RequiredParam "path" EntryPath
       :> RequiredParam "field" FieldKey
       :> Delete '[JSON] DeleteFieldResult
 
@@ -63,7 +60,7 @@ type API
       :> OptionalParam  "sort-field" (Sort, Direction)
       :> OptionalParams "filter" Filter
       :> OptionalParams "filter-field" (FieldKey, FilterField)
-      :> Get '[JSON] (Maybe (Directory Entry))
+      :> Get '[JSON] (Maybe Directory)
 
     :<|> "rename"
       :> RequiredParam "old-path" Path
@@ -83,8 +80,8 @@ type API
       :> Post '[JSON] DeleteResult
 
     :<|> "tag"
-      :> RequiredParam "path" Path
-      :> RequiredParam "tag" Text
+      :> RequiredParam "path" EntryPath
+      :> RequiredParam "tag" EntryTag
       :> QueryFlag     "delete"
       :> Post '[JSON] TagResult
     )
@@ -115,8 +112,7 @@ instance FromHttpApiData Filter where
             , "<"  $> OpLT
             , "="  $> OpEQ
             ]
-          date <- parseDate
-          return (FilterByDate op date)
+          FilterByDate op <$> parseDate
       ]
 
 instance FromHttpApiData (Sort, Direction) where
@@ -132,8 +128,8 @@ instance FromHttpApiData (Sort, Direction) where
       , do
           (field, _) <- match $ some $ noneOf [':']
           case newFieldKey field of
-            Nothing -> fail "field name is incorrect"
-            Just field -> do
+            Left e -> fail $ "field name is incorrect" <> show e
+            Right field -> do
               void ":"
               means <- choice
                 [ SortByFieldValue field <$ "value"
@@ -150,8 +146,8 @@ instance FromHttpApiData (FieldKey, FilterField) where
     field <- fieldName
     void ":"
     case newFieldKey field of
-      Nothing -> fail "field name is incorrect"
-      Just field -> do
+      Left e -> fail $ "field name is incorrect" <> show e
+      Right field -> do
         choice
           [ do
               void "value~"
@@ -188,7 +184,7 @@ parseDate = do
               s <- read <$> times 2 digit
               local <- maybe (fail "invalid hour/minute/second") return do
                 makeTimeOfDayValid h mm (fromIntegral @Int @Pico s)
-              return $ FDTime (LocalTime day local)
+              return $ FDTime (localTimeToUTC utc $ LocalTime day local)
             <|> do
               maybe (fail "invalid year/month/date") (return . FDDay)
                 $ fromGregorianValid y m d
@@ -211,37 +207,10 @@ deriving newtype instance FromHttpApiData VaultToken
 deriving newtype instance FromHttpApiData FieldKey
 
 instance FromHttpApiData Path where
-  parseUrlPiece = toServantParser do
-    mkPath <$> takeRest
+  parseUrlPiece txt = mkPath =<< toServantParser takeRest txt
+
+instance FromHttpApiData EntryPath where
+  parseUrlPiece = mkEntryPath
 
 toServantParser :: Parsec Void Text a -> Text -> Either Text a
-toServantParser p = bimap (Text.pack . errorBundlePretty) id . parse p "<url>"
-
--- instance ToHttpApiData Sort where
---   toUrlPiece =
---       = SortByEntryName
---   | SortByEntryDate
---   | SortByFieldValue FieldKey
---   | SortByFieldDate FieldKey
-
--- instance ToHttpApiData SortMeans where
---   toUrlPiece SMDate = "date"
---   toUrlPiece SMName = "name"
-
--- instance ToHttpApiData Direction where
---   toUrlPiece Asc  = "asc"
---   toUrlPiece Desc = "desc"
-
--- instance ToHttpApiData Filter where
---   toUrlPiece (FilterByName n) = n
---   toUrlPiece (FilterByDate op d) = toUrlPiece op <> toUrlPiece d
-
--- instance ToHttpApiData FilterOp where
---   toUrlPiece OpGT  = ">"
---   toUrlPiece OpGTE = ">="
---   toUrlPiece OpEQ  = "="
---   toUrlPiece OpLTE = "<="
---   toUrlPiece OpLT  = "<"
-
--- instance ToHttpApiData FilterDate where
---   toUrlPiece = Text.pack . show
+toServantParser p = first (Text.pack . errorBundlePretty) . parse p "<url>"

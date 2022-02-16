@@ -29,6 +29,8 @@ import Control.Lens
 import qualified Data.List.NonEmpty as NE
 import Control.Monad ((>=>))
 import qualified Data.List as List
+import GHC.Generics (Generic)
+import Data.Aeson (ToJSON, FromJSON)
 
 -- $setup
 -- >>> import Fmt (pretty)
@@ -37,8 +39,9 @@ import qualified Data.List as List
 -- >>> unsafeMkEntryPath = isRight . mkEntryPath
 
 newtype PathSegment = UnsafeMkPathSegment { unPathSegment :: Text }
-  deriving stock (Show, Eq)
+  deriving stock (Show, Eq, Generic)
   deriving newtype (Buildable, Hashable)
+  deriving anyclass (FromJSON, ToJSON)
 
 mkPathSegment :: Text -> Either Text PathSegment
 mkPathSegment segment
@@ -53,8 +56,9 @@ pathSegmentAllowedCharacters = ['a'..'z'] ++ ['A'..'Z'] ++ ['0'..'9'] ++ "-_"
 
 -- | Path to a directory or an entry.
 newtype Path = Path { _unPath :: [PathSegment] }
-  deriving stock (Show, Eq)
+  deriving stock (Show, Eq, Generic)
   deriving newtype (Semigroup, Monoid)
+  deriving anyclass (FromJSON, ToJSON)
 
 makeLenses ''Path
 
@@ -102,7 +106,8 @@ mkPath path = do
 
 -- | An entry's full path (directory + entry's name).
 newtype EntryPath = EntryPath { _unEntryPath :: NonEmpty PathSegment }
-  deriving stock (Show, Eq)
+  deriving stock (Show, Eq, Generic)
+  deriving anyclass (Hashable, ToJSON, FromJSON)
 
 -- |
 -- >>> pretty @EntryPath @String <$> mkEntryPath "a/b/c"
