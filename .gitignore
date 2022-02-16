@@ -2,3 +2,5 @@
 /.ghc.environment.*
 /.direnv
 .stack-work
+coffer.cabal
+.vscode
